@@ -52,13 +52,16 @@ jobs:
 
             - name: Create .env.test.local
               run: |
-                  echo "DATABASE_URL=mysql://app:password@127.0.0.1:3306/app" > .env.test.local
+                  echo "DATABASE_URL=mysql://app:password@127.0.0.1:3306/app_test" > .env.test.local
                   echo "APP_ENV=test" >> .env.test.local
                   echo "APP_BASE_DOMAIN=localhost" >> .env.test.local
 
-            - name: Run database migrations
+            - name: Setup test database
               run: |
-                  php bin/console doctrine:database:create --env=test || true
+                  # Grant CREATE privilege to app user
+                  mysql -h127.0.0.1 -uroot -ppassword -e "GRANT CREATE ON *.* TO 'app'@'%'; FLUSH PRIVILEGES;"
+                  # Create test database
+                  php bin/console doctrine:database:create --env=test
                   php bin/console doctrine:migrations:migrate --no-interaction --env=test
 
             - name: Load fixtures (if available)
