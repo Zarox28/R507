@@ -91,7 +91,12 @@ jobs:
                   extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, dom, filter, gd, json, mbstring, zip
 
             - name: Install dependencies (production)
-              run: composer install --prefer-dist --no-progress --no-interaction --no-dev --optimize-autoloader
+              run: composer install --prefer-dist --no-progress --no-interaction --no-dev --optimize-autoloader --no-scripts
+
+            - name: Setup production environment
+              run: |
+                  echo "APP_ENV=prod" > .env.local
+                  echo "APP_DEBUG=false" >> .env.local
 
             - name: Clear and warmup cache
               run: |
@@ -99,7 +104,7 @@ jobs:
                   php bin/console cache:warmup --env=prod --no-debug
 
             - name: Install assets
-              run: php bin/console asset-map:compile
+              run: php bin/console asset-map:compile --env=prod
 
             - name: Prepare deployment files
               run: |
