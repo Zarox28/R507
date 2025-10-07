@@ -26,8 +26,13 @@ class Contact
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
-    #[ORM\Column(length: 20)]
+    #[ORM\Column(length: 20, options: ["default" => "new"])]
     private ?string $status = null;
+
+    public function __construct()
+    {
+        $this->status = "new";
+    }
 
     public function getId(): ?int
     {
