@@ -76,6 +76,11 @@ jobs:
         if: success()
 
         steps:
+            - name: Deploy job started
+              run: |
+                  echo "✅ Deploy job starting..."
+                  echo "Tests job result: ${{ needs.tests.result }}"
+
             - name: Checkout code
               uses: actions/checkout@v4
 
@@ -109,7 +114,35 @@ jobs:
                   rm -f .gitignore
                   rm -f README.md
 
+            - name: Check FTP secrets
+              run: |
+                  echo "Checking FTP configuration..."
+                  if [ -z "${{ secrets.FTP_SERVER }}" ]; then
+                    echo "❌ FTP_SERVER secret is not configured"
+                    FTP_READY=false
+                  else
+                    echo "✅ FTP_SERVER is configured"
+                    FTP_READY=true
+                  fi
+
+                  if [ -z "${{ secrets.FTP_USERNAME }}" ]; then
+                    echo "❌ FTP_USERNAME secret is not configured"
+                    FTP_READY=false
+                  else
+                    echo "✅ FTP_USERNAME is configured"
+                  fi
+
+                  if [ -z "${{ secrets.FTP_PASSWORD }}" ]; then
+                    echo "❌ FTP_PASSWORD secret is not configured"
+                    FTP_READY=false
+                  else
+                    echo "✅ FTP_PASSWORD is configured"
+                  fi
+
+                  echo "FTP_READY=$FTP_READY" >> $GITHUB_ENV
+
             - name: Deploy to FTP
+              if: env.FTP_READY == 'true'
               uses: SamKirkland/FTP-Deploy-Action@v4.3.4
               with:
                   server: ${{ secrets.FTP_SERVER }}
@@ -123,3 +156,15 @@ jobs:
                       **/node_modules/**
                       **/tests/**
                       **/.env.test*
+
+            - name: Deployment summary
+              run: |
+                  if [ "${{ env.FTP_READY }}" = "true" ]; then
+                    echo "🚀 Deployment completed successfully!"
+                  else
+                    echo "⚠️  Deployment skipped - FTP secrets not configured"
+                    echo "To enable deployment, configure these GitHub repository secrets:"
+                    echo "  - FTP_SERVER"
+                    echo "  - FTP_USERNAME"
+                    echo "  - FTP_PASSWORD"
+                  fi
