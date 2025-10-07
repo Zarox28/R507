@@ -1,0 +1,122 @@
+name: Tests and Deploy
+
+on:
+    push:
+        branches: [develop]
+
+jobs:
+    tests:
+        runs-on: ubuntu-latest
+
+        services:
+            mariadb:
+                image: mariadb:latest
+                env:
+                    MARIADB_ROOT_PASSWORD: password
+                    MARIADB_DATABASE: app
+                    MARIADB_USER: app
+                    MARIADB_PASSWORD: password
+                ports:
+                    - 3306:3306
+                options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+        strategy:
+            matrix:
+                php-version: [8.2, 8.3]
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ matrix.php-version }}
+                  extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, dom, filter, gd, json, mbstring, zip
+                  coverage: none
+
+            - name: Validate composer.json and composer.lock
+              run: composer validate --strict
+
+            - name: Cache Composer packages
+              id: composer-cache
+              uses: actions/cache@v4
+              with:
+                  path: vendor
+                  key: ${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-php-${{ matrix.php-version }}-
+
+            - name: Install dependencies
+              run: composer install --prefer-dist --no-progress --no-interaction
+
+            - name: Create .env.test.local
+              run: |
+                  echo "DATABASE_URL=mysql://app:password@127.0.0.1:3306/app" > .env.test.local
+                  echo "APP_ENV=test" >> .env.test.local
+                  echo "APP_BASE_DOMAIN=localhost" >> .env.test.local
+
+            - name: Run database migrations
+              run: |
+                  php bin/console doctrine:database:create --env=test || true
+                  php bin/console doctrine:migrations:migrate --no-interaction --env=test
+
+            - name: Load fixtures (if available)
+              run: php bin/console doctrine:fixtures:load --no-interaction --env=test || true
+
+            - name: Run PHPUnit tests
+              run: php bin/phpunit
+
+    deploy:
+        runs-on: ubuntu-latest
+        needs: tests
+        if: success()
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: 8.2
+                  extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, dom, filter, gd, json, mbstring, zip
+
+            - name: Install dependencies (production)
+              run: composer install --prefer-dist --no-progress --no-interaction --no-dev --optimize-autoloader
+
+            - name: Clear and warmup cache
+              run: |
+                  php bin/console cache:clear --env=prod --no-debug
+                  php bin/console cache:warmup --env=prod --no-debug
+
+            - name: Install assets
+              run: php bin/console asset-map:compile
+
+            - name: Prepare deployment files
+              run: |
+                  # Remove development files and directories
+                  rm -rf tests/
+                  rm -rf .git/
+                  rm -rf .github/
+                  rm -rf var/cache/*
+                  rm -rf var/log/*
+                  rm -f .env.test.local
+                  rm -f phpunit.dist.xml
+                  rm -f .gitignore
+                  rm -f README.md
+
+            - name: Deploy to FTP
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+              with:
+                  server: 51.38.224.153
+                  username: alexian
+                  password: 2%5q75ckG
+                  local-dir: ./
+                  server-dir: /
+                  exclude: |
+                      **/.git*
+                      **/.git*/**
+                      **/node_modules/**
+                      **/tests/**
+                      **/.env.test*
