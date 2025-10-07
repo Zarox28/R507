@@ -76,10 +76,17 @@ final class MainController extends AbstractController
     {
         $limit = 2;
         $search = $request->query->get("search");
+        $status = $request->query->get("status", "all");
 
-        if ($search) {
+        if ($search && $status !== "all") {
+            $contacts = $repository->searchWithPaginationAndStatus($search, $status, $page, $limit);
+            $totalCount = $repository->countSearchWithStatus($search, $status);
+        } elseif ($search) {
             $contacts = $repository->searchWithPagination($search, $page, $limit);
             $totalCount = $repository->countSearch($search);
+        } elseif ($status !== "all") {
+            $contacts = $repository->paginateByStatus($status, $page, $limit);
+            $totalCount = $repository->countByStatus($status);
         } else {
             $contacts = $repository->paginate($page, $limit);
             $totalCount = $repository->count();
@@ -92,6 +99,7 @@ final class MainController extends AbstractController
             "currentPage" => $page,
             "totalPages" => $totalPages,
             "search" => $search,
+            "currentStatus" => $status,
         ]);
     }
 }

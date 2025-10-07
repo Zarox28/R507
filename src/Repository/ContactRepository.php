@@ -78,6 +78,75 @@ class ContactRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    /**
+     * @return Contact[] Returns an array of Contact objects with pagination and status filter
+     */
+    public function paginateByStatus(string $status, int $page, int $limit): array
+    {
+        $offset = ($page - 1) * $limit;
+
+        return $this->createQueryBuilder("c")
+            ->andWhere("c.status = :status")
+            ->setParameter("status", $status)
+            ->setFirstResult($offset)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Count contacts by status
+     */
+    public function countByStatus(string $status): int
+    {
+        return $this->createQueryBuilder("c")
+            ->select("count(c.id)")
+            ->andWhere("c.status = :status")
+            ->setParameter("status", $status)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * @return Contact[] Returns an array of Contact objects with pagination, search and status filter
+     */
+    public function searchWithPaginationAndStatus(string $search, string $status, int $page, int $limit): array
+    {
+        $offset = ($page - 1) * $limit;
+        $qb = $this->createQueryBuilder("c");
+
+        return $qb
+            ->andWhere(
+                $qb->expr()->orX($qb->expr()->like("c.firstName", ":search"), $qb->expr()->like("c.name", ":search")),
+            )
+            ->andWhere("c.status = :status")
+            ->setParameter("search", "%" . $search . "%")
+            ->setParameter("status", $status)
+            ->setFirstResult($offset)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Count search results with status filter
+     */
+    public function countSearchWithStatus(string $search, string $status): int
+    {
+        $qb = $this->createQueryBuilder("c");
+
+        return $qb
+            ->select("count(c.id)")
+            ->andWhere(
+                $qb->expr()->orX($qb->expr()->like("c.firstName", ":search"), $qb->expr()->like("c.name", ":search")),
+            )
+            ->andWhere("c.status = :status")
+            ->setParameter("search", "%" . $search . "%")
+            ->setParameter("status", $status)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     //    public function findOneBySomeField($value): ?Contact
     //    {
     //        return $this->createQueryBuilder('c')
