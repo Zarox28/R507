@@ -100,8 +100,8 @@ jobs:
 
             - name: Clear and warmup cache
               run: |
-                  php bin/console cache:clear --env=prod --no-debug
-                  php bin/console cache:warmup --env=prod --no-debug
+                  php bin/console cache:clear --env=dev
+                  php bin/console cache:warmup --env=dev
 
             - name: Install assets
               run: php bin/console asset-map:compile --env=prod
