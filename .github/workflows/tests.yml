@@ -103,11 +103,11 @@ jobs:
                   php bin/console cache:clear --env=dev
                   php bin/console cache:warmup --env=dev
 
-            - name: Reinstall dependencies (production only)
-              run: composer install --prefer-dist --no-progress --no-interaction --no-dev --optimize-autoloader --no-scripts
-
             - name: Install assets
               run: php bin/console asset-map:compile --env=prod
+
+            - name: Reinstall dependencies (production only)
+              run: composer install --prefer-dist --no-progress --no-interaction --no-dev --optimize-autoloader --no-scripts
 
             - name: Prepare deployment files
               run: |
