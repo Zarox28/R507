@@ -90,8 +90,8 @@ jobs:
                   php-version: 8.2
                   extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, dom, filter, gd, json, mbstring, zip
 
-            - name: Install dependencies (production)
-              run: composer install --prefer-dist --no-progress --no-interaction --no-dev --optimize-autoloader --no-scripts
+            - name: Install dependencies (with dev for cache commands)
+              run: composer install --prefer-dist --no-progress --no-interaction
 
             - name: Setup production environment
               run: |
@@ -102,6 +102,9 @@ jobs:
               run: |
                   php bin/console cache:clear --env=dev
                   php bin/console cache:warmup --env=dev
+
+            - name: Reinstall dependencies (production only)
+              run: composer install --prefer-dist --no-progress --no-interaction --no-dev --optimize-autoloader --no-scripts
 
             - name: Install assets
               run: php bin/console asset-map:compile --env=prod
