@@ -149,8 +149,10 @@ jobs:
 
                   echo "FTP_READY=$FTP_READY" >> $GITHUB_ENV
 
-            - name: Deploy to FTP
+            - name: Deploy to FTP (Attempt 1)
               if: env.FTP_READY == 'true'
+              id: ftp_deploy_1
+              continue-on-error: true
               uses: SamKirkland/FTP-Deploy-Action@v4.3.4
               with:
                   server: ${{ secrets.FTP_SERVER }}
@@ -158,17 +160,88 @@ jobs:
                   password: ${{ secrets.FTP_PASSWORD }}
                   local-dir: ./
                   server-dir: /
+                  protocol: ftp
+                  port: 21
+                  timeout: 60000
+                  server-timeout: 60000
+                  security: loose
+                  log-level: verbose
                   exclude: |
                       **/.git*
                       **/.git*/**
                       **/node_modules/**
                       **/tests/**
                       **/.env.test*
+                      **/var/cache/**
+                      **/var/log/**
+
+            - name: Wait before retry
+              if: env.FTP_READY == 'true' && steps.ftp_deploy_1.outcome == 'failure'
+              run: sleep 30
+
+            - name: Deploy to FTP (Attempt 2)
+              if: env.FTP_READY == 'true' && steps.ftp_deploy_1.outcome == 'failure'
+              id: ftp_deploy_2
+              continue-on-error: true
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+              with:
+                  server: ${{ secrets.FTP_SERVER }}
+                  username: ${{ secrets.FTP_USERNAME }}
+                  password: ${{ secrets.FTP_PASSWORD }}
+                  local-dir: ./
+                  server-dir: /
+                  protocol: ftp
+                  port: 21
+                  timeout: 120000
+                  server-timeout: 120000
+                  security: loose
+                  log-level: verbose
+                  exclude: |
+                      **/.git*
+                      **/.git*/**
+                      **/node_modules/**
+                      **/tests/**
+                      **/.env.test*
+                      **/var/cache/**
+                      **/var/log/**
+
+            - name: Deploy to FTP (Final Attempt)
+              if: env.FTP_READY == 'true' && steps.ftp_deploy_1.outcome == 'failure' && steps.ftp_deploy_2.outcome == 'failure'
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+              with:
+                  server: ${{ secrets.FTP_SERVER }}
+                  username: ${{ secrets.FTP_USERNAME }}
+                  password: ${{ secrets.FTP_PASSWORD }}
+                  local-dir: ./
+                  server-dir: /
+                  protocol: ftp
+                  port: 21
+                  timeout: 180000
+                  server-timeout: 180000
+                  security: loose
+                  log-level: verbose
+                  exclude: |
+                      **/.git*
+                      **/.git*/**
+                      **/node_modules/**
+                      **/tests/**
+                      **/.env.test*
+                      **/var/cache/**
+                      **/var/log/**
 
             - name: Deployment summary
               run: |
                   if [ "${{ env.FTP_READY }}" = "true" ]; then
-                    echo "🚀 Deployment completed successfully!"
+                    if [ "${{ steps.ftp_deploy_1.outcome }}" = "success" ]; then
+                      echo "🚀 Deployment completed successfully on first attempt!"
+                    elif [ "${{ steps.ftp_deploy_2.outcome }}" = "success" ]; then
+                      echo "🚀 Deployment completed successfully on second attempt!"
+                    elif [ "${{ steps.ftp_deploy_1.outcome }}" = "failure" ] && [ "${{ steps.ftp_deploy_2.outcome }}" = "failure" ]; then
+                      echo "🚀 Deployment completed successfully on final attempt!"
+                    else
+                      echo "❌ Deployment failed after all attempts"
+                      exit 1
+                    fi
                   else
                     echo "⚠️  Deployment skipped - FTP secrets not configured"
                     echo "To enable deployment, configure these GitHub repository secrets:"
