@@ -115,7 +115,6 @@ jobs:
                   rm -rf tests/
                   rm -rf .git/
                   rm -rf .github/
-                  rm -rf var/cache/*
                   rm -rf var/log/*
                   rm -f .env.test.local
                   rm -f phpunit.dist.xml
@@ -168,7 +167,6 @@ jobs:
                       **/node_modules/**
                       **/tests/**
                       **/.env.test*
-                      **/var/cache/**
                       **/var/log/**
 
             - name: Deployment summary
